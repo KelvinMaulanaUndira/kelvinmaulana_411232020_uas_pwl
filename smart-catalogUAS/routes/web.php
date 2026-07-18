@@ -1,0 +1,55 @@
+<?php
+
+use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\AuthController;
+use App\Http\Controllers\CategoryController;
+use App\Http\Controllers\ProductController;
+use App\Http\Controllers\SalesTransactionController;
+use App\Http\Controllers\StockMutationController;
+
+Route::middleware('guest')->group(function () {
+    Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
+    Route::post('/login', [AuthController::class, 'login']);
+    Route::get('/register', [AuthController::class, 'showRegister'])->name('register');
+    Route::post('/register', [AuthController::class, 'register']);
+});
+
+Route::middleware('auth')->group(function () {
+    Route::get('/dashboard', function () {
+        $totalKategori = \App\Models\Category::count();
+        $totalProduk = \App\Models\Products::count();
+        $totalTerjual = \App\Models\SalesTransaction::sum('qty');
+        $categoriesData = \App\Models\Category::withCount('products')->get();
+        $lowStockProducts = \App\Models\Products::where('stok', '<', 10)->get();
+        $latestSales = \App\Models\SalesTransaction::with('product')->latest()->take(5)->get();
+        $topSellingProducts = \App\Models\SalesTransaction::with('product.category')
+            ->select('product_id', \Illuminate\Support\Facades\DB::raw('SUM(qty) as total_sold'))
+            ->groupBy('product_id')
+            ->orderByDesc('total_sold')
+            ->take(5)
+            ->get();
+
+        return view('dashboard', compact(
+            'totalKategori', 'totalProduk', 'totalTerjual', 'categoriesData',
+            'lowStockProducts', 'latestSales', 'topSellingProducts'
+        ));
+    })->name('dashboard');
+
+    // Export routes (MUST be above resource routes)
+    Route::get('/products/export/excel', [ProductController::class, 'exportExcel'])->name('products.export');
+    Route::get('/sales/export/excel', [SalesTransactionController::class, 'exportExcel'])->name('sales.export');
+    Route::get('/sales/{id}/pdf', [SalesTransactionController::class, 'generatePDF'])->name('sales.pdf');
+    Route::get('/sales/{id}/pdf/preview', [SalesTransactionController::class, 'previewPDF'])->name('sales.pdf.preview');
+
+    // CRUD Resources
+    Route::resource('categories', CategoryController::class)->except(['show']);
+    Route::resource('products', ProductController::class)->except(['show']);
+    Route::resource('sales', SalesTransactionController::class)->only(['index', 'create', 'store', 'show']);
+    Route::resource('stocks', StockMutationController::class)->only(['index', 'create', 'store']);
+
+    Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+});
+
+Route::get('/', function () {
+    return redirect()->route('login');
+});
