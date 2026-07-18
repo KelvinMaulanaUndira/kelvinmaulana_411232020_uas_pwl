@@ -47,10 +47,7 @@ Login / Register
 
 ## Akun Demo
 
-| Email                        | Password   |
-| ---------------------------- | ---------- |
-| `developer@smartcatalog.com` | `password` |
-| `test@example.com`           | `password` |
+-create new-
 
 ---
 
